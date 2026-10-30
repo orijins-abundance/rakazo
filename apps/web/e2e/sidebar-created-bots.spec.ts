@@ -18,6 +18,7 @@ test("created bots appear as regular bots and reorder across their creator", asy
   const composer = page.locator('textarea[name="chat-message"]');
   await composer.fill("spawn a bot named Scout to research venues");
   await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "Allow once", exact: true }).click();
 
   const scout = rosterRow(page, /Scout/);
   const chief = rosterRow(page, /^Chief/);
