@@ -56,10 +56,31 @@ describe("toolRequiresApproval", () => {
       "shell",
       "remember",
       "save_shared_memory",
-      "spawn_bot",
       "run_subagent",
     ]) {
       expect(toolRequiresApproval(name, false)).toBe(false);
+    }
+  });
+
+  it("requires a person's approval before one bot creates another", () => {
+    expect(toolRequiresApproval("spawn_bot", false)).toBe(true);
+    expect(toolRequiresExplicitApproval("spawn_bot")).toBe(true);
+    const allowed = {
+      decision: "allow" as const,
+      source: "always_allow" as const,
+      matchingRules: [],
+      decisiveRules: [],
+    };
+    for (const mode of ["auto", "ask"] as const) {
+      expect(
+        planActionGate({
+          resolved: allowed,
+          mode,
+          mandatory: toolRequiresExplicitApproval("spawn_bot"),
+          consequential: true,
+          checkerConfigured: true,
+        }),
+      ).toBe("ask");
     }
   });
 

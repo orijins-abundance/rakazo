@@ -19,7 +19,6 @@ const APPROVAL_EXEMPT_TOOLS = new Set([
   "request_secret",
   "generate_secret",
   "run_subagent",
-  "spawn_bot",
   "schedule_create",
   "schedule_list",
   "schedule_update",
@@ -46,6 +45,7 @@ const APPROVAL_REQUIRED_BUILTIN_TOOLS = new Set([
 const EXPLICIT_APPROVAL_BUILTIN_TOOLS = new Set([
   "respond_agent_connection",
   "create_space",
+  "spawn_bot",
   "propose_instructions_update",
   "create_group",
   "update_group",

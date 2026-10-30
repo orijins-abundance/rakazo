@@ -14,6 +14,7 @@ import { createPendingSteeringRun, sendUserMessage } from "@rakazo/db";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DENIED_ACTION_ERROR, isApprovalPausedResult } from "./approval-effect.js";
 import { MAX_SHARED_MEMORY_CHARS } from "./builtin-tools.js";
+import type * as ChildBotsModule from "./child-bots.js";
 import type * as ComputerLifecycleModule from "./computer-lifecycle.js";
 import { createRunExecutor } from "./executor.js";
 import { FakeWebProvider } from "./fake-web.js";
@@ -37,6 +38,12 @@ const createFleetGroupMock = vi.hoisted(() => vi.fn());
 vi.mock("./fleet-tools.js", async (importOriginal) => ({
   ...(await importOriginal<typeof FleetToolsModule>()),
   createFleetGroup: createFleetGroupMock,
+}));
+
+const spawnBotMock = vi.hoisted(() => vi.fn());
+vi.mock("./child-bots.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof ChildBotsModule>()),
+  spawnBot: spawnBotMock,
 }));
 
 const reviewMock = vi.fn();
@@ -1295,6 +1302,60 @@ describe("create_space", () => {
     await skipped.run(true);
     expect(skipped.pauseRunForInput).not.toHaveBeenCalled();
     expect(skipped.effects[0]?.status).not.toBe("intended");
+  });
+});
+
+describe("spawn_bot", () => {
+  const args = { name: "Helper" };
+
+  it("refuses to create a bot without an approval card, then creates it once that card is approved", async () => {
+    reviewMock.mockReset();
+    const spawned = { ok: true, botId: "bot-2", name: "Helper", threadId: "thread-2" };
+    spawnBotMock.mockReset();
+    spawnBotMock.mockResolvedValue(spawned);
+    const f = fixture({
+      name: "spawn_bot",
+      builtin: true,
+      autoReview: true,
+      rules: [{ effect: "always_allow", matchKind: "tool", matchValue: "spawn_bot" }],
+    });
+    f.setCalls([{ args, executionId: "call-1" }]);
+    await f.run();
+    expect(spawnBotMock).not.toHaveBeenCalled();
+    expect(isApprovalPausedResult(f.results[0])).toBe(true);
+    expect(f.effects).toEqual([
+      expect.objectContaining({ kind: "spawn_bot", status: "intended", request: args }),
+    ]);
+    expect(reviewMock).not.toHaveBeenCalled();
+    expect(f.pauseRunForInput).toHaveBeenCalledOnce();
+    expect(f.pauseRunForInput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        blocks: [
+          expect.objectContaining({
+            kind: "ask",
+            approvalEffectId: f.effects[0]!.id,
+            text: "Review before spawn_bot",
+            actions: [
+              { id: "allow", label: "Allow once" },
+              { id: "deny", label: "Deny" },
+            ],
+          }),
+        ],
+      }),
+    );
+
+    f.effects[0]!.status = "approved";
+    f.setCalls([{ args: { name: "Renamed" }, executionId: "call-2" }]);
+    await f.run();
+    expect(spawnBotMock).toHaveBeenCalledOnce();
+    expect(spawnBotMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ name: "Helper" }),
+    );
+    expect(f.effects).toHaveLength(1);
+    expect(f.effects[0]).toMatchObject({ status: "completed", result: spawned });
+    expect(f.results.at(-1)).toEqual(spawned);
+    expect(f.pauseRunForInput).toHaveBeenCalledOnce();
   });
 });
 

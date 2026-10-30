@@ -1840,6 +1840,7 @@ describeJourneys("required product journeys", () => {
 
   it("untrusted bot_message run cannot rewrite a child's instructions", async () => {
     const cookie = await signup(app, `bot-management-trust-j-${stamp}@rakazo.test`, "Bot Manager");
+    await runWithoutAsking(cookie);
     const parent = await rpc<Bot>(app, cookie, "bots/create", {
       name: "Chief",
       title: "",

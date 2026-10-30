@@ -65,6 +65,7 @@ test(
     const composer = page.getByPlaceholder("Message Chief");
     await composer.fill("spawn a bot named Scout to research venues");
     await page.keyboard.press("Enter");
+    await page.getByRole("button", { name: "Allow once", exact: true }).click();
     await expect(page.locator("[data-roster-bot-name]").filter({ hasText: /^Scout$/ })).toBeVisible(
       {
         timeout: 30_000,
